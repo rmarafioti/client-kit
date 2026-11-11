@@ -1,0 +1,118 @@
+# Sync: copies docs/cms/ into every client repo in clients.json as a pull request from the
+# 3dwd-sync GitHub App, set to auto-merge on green CI where clients.json allows it.
+name: Sync
+
+on:
+  push:
+    branches: [main]
+    paths: ['docs/cms/**']
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: Only report which client repos differ, and open nothing
+        type: boolean
+        default: true
+
+# client-kit itself is only read. Writes to the client repos use the App's token, which the
+# App's installation limits to the repos it is installed on.
+permissions:
+  contents: read
+
+jobs:
+  targets:
+    runs-on: ubuntu-latest
+    outputs:
+      clients: ${{ steps.read.outputs.clients }}
+    steps:
+      - uses: actions/checkout@v7
+      - id: read
+        run: echo "clients=$(jq -c .clients clients.json)" >> "$GITHUB_OUTPUT"
+
+  sync:
+    needs: targets
+    runs-on: ubuntu-latest
+    strategy:
+      # One client repo failing never stops the others.
+      fail-fast: false
+      matrix:
+        client: ${{ fromJSON(needs.targets.outputs.clients) }}
+    env:
+      REPO: ${{ matrix.client.repo }}
+      AUTO_MERGE: ${{ matrix.client.autoMerge }}
+      DRY_RUN: ${{ github.event_name == 'workflow_dispatch' && inputs.dry_run }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          path: kit
+
+      - id: target
+        run: |
+          echo "owner=${REPO%%/*}" >> "$GITHUB_OUTPUT"
+          echo "name=${REPO#*/}" >> "$GITHUB_OUTPUT"
+
+      # A token for this one client repo, valid for about an hour and revoked when the job ends.
+      - id: app
+        uses: actions/create-github-app-token@v3
+        with:
+          client-id: ${{ secrets.SYNC_CLIENT_ID }}
+          private-key: ${{ secrets.SYNC_APP_PRIVATE_KEY }}
+          owner: ${{ steps.target.outputs.owner }}
+          repositories: ${{ steps.target.outputs.name }}
+
+      - uses: actions/checkout@v7
+        with:
+          repository: ${{ matrix.client.repo }}
+          token: ${{ steps.app.outputs.token }}
+          path: client
+
+      - name: Sync docs/cms
+        working-directory: client
+        env:
+          GH_TOKEN: ${{ steps.app.outputs.token }}
+          BOT: ${{ steps.app.outputs.app-slug }}[bot]
+          SLUG: ${{ steps.app.outputs.app-slug }}
+        run: |
+          set -euo pipefail
+          short_sha="${GITHUB_SHA::7}"
+
+          # An open sync pull request gets a new commit instead of a second pull request. A new
+          # branch per sync otherwise, so the bot never needs to force-push.
+          branch=$(gh pr list -R "$REPO" --state open --author "app/$SLUG" --json headRefName \
+            --jq '[.[] | select(.headRefName | startswith("3dwd-sync/"))][0].headRefName // ""')
+          if [ -n "$branch" ]; then
+            git fetch --depth 1 origin "$branch"
+            git checkout -b "$branch" FETCH_HEAD
+          else
+            branch="3dwd-sync/cms-$short_sha"
+            git checkout -b "$branch"
+          fi
+
+          mkdir -p docs/cms
+          rsync -a --delete ../kit/docs/cms/ docs/cms/
+          if [ -z "$(git status --porcelain -- docs/cms)" ]; then
+            echo "$REPO: docs/cms matches client-kit, skipped."
+            exit 0
+          fi
+          echo "$REPO: docs/cms differs from client-kit:"
+          git status --short -- docs/cms
+          if [ "$DRY_RUN" = true ]; then
+            echo "Dry run: nothing opened."
+            exit 0
+          fi
+
+          git config user.name "$BOT"
+          git config user.email "$(gh api "/users/$BOT" --jq .id)+$BOT@users.noreply.github.com"
+          git add docs/cms
+          git commit -m "docs: sync docs/cms from client-kit $short_sha"
+          git push origin "$branch"
+
+          open_pr=$(gh pr list -R "$REPO" --head "$branch" --state open --json number --jq '.[0].number // ""')
+          if [ -z "$open_pr" ]; then
+            gh pr create -R "$REPO" --head "$branch" --base main \
+              --title "docs: sync docs/cms from client-kit" \
+              --body "Copies \`docs/cms/\` from rmarafioti/client-kit@$GITHUB_SHA. It changes nothing outside \`docs/cms/\`, which this repo's CI checks. Never edit \`docs/cms/\` here: change it in client-kit."
+          fi
+
+          if [ "$AUTO_MERGE" = true ]; then
+            gh pr merge -R "$REPO" "$branch" --auto --squash
+          fi
