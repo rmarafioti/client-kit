@@ -1,6 +1,7 @@
 {
   "clients": [
     { "repo": "rmarafioti/stevie_the_dog", "autoMerge": true },
-    { "repo": "rmarafioti/estudio_castelo", "autoMerge": true }
+    { "repo": "rmarafioti/estudio_castelo", "autoMerge": true },
+    { "repo": "rmarafioti/frontend_scaffold", "autoMerge": false }
   ]
 }
