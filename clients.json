@@ -4,6 +4,6 @@
     { "repo": "rmarafioti/estudio_castelo", "autoMerge": true },
     { "repo": "rmarafioti/frontend_scaffold", "autoMerge": true },
     { "repo": "rmarafioti/personal-website", "autoMerge": true },
-    { "repo": "rmarafioti/legacyTattoo", "autoMerge": false }
+    { "repo": "rmarafioti/legacyTattoo", "autoMerge": true }
   ]
 }
