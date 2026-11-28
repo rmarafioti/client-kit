@@ -3,6 +3,7 @@
     { "repo": "rmarafioti/stevie_the_dog", "autoMerge": true },
     { "repo": "rmarafioti/estudio_castelo", "autoMerge": true },
     { "repo": "rmarafioti/frontend_scaffold", "autoMerge": true },
-    { "repo": "rmarafioti/personal-website", "autoMerge": true }
+    { "repo": "rmarafioti/personal-website", "autoMerge": true },
+    { "repo": "rmarafioti/legacyTattoo", "autoMerge": false }
   ]
 }
