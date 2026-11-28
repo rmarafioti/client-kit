@@ -1,5 +1,6 @@
-# CI: lint and tests, plus the docs/cms checks: the folder matches client-kit's main, and a sync
-# pull request from client-kit changes nothing outside it. Copied from client-kit's templates/.
+# CI: lint, the Prettier check, tests and the build, plus the docs/cms checks: the folder matches
+# client-kit's main, and a sync pull request from client-kit changes nothing outside it. Copied
+# from client-kit's templates/.
 name: CI
 
 on:
@@ -53,4 +54,7 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npm run lint
+      - run: npx prettier --check .
       - run: npm test
+      # With no HEADLESS_CMS_* vars, cmsFetch returns empty, so the build passes without the CMS.
+      - run: npm run build
