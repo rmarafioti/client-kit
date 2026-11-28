@@ -7,7 +7,7 @@ The shared docs every 3DWD client website follows to show the content its site o
 - `docs/cms/`: the client guide. `client-website.md` is the base (environment variables, the API, fetching CMS data, images, the revalidate route, testing). Each ability has its own doc that builds on it: `posts.md` and `galleries.md`, and one more per future ability. Every client repo gets the whole folder, whatever abilities its site uses; its own `docs/site.md` says which ones it reads.
 - `clients.json`: the client repos the folder is synced to, and whether each one's sync pull requests auto-merge. It also lists `rmarafioti/frontend_scaffold`, the template every new client website starts from (the backend's `docs/deploy.md` → Onboarding, path A): it isn't a client website, but synced like one, a repo made from it starts with the current guide.
 - `.github/workflows/sync.yml`: the sync.
-- `templates/ci.yml`: the CI every client repo copies as `.github/workflows/ci.yml` when it is onboarded. It isn't synced.
+- `templates/ci.yml`: the CI every client repo copies as `.github/workflows/ci.yml` when it is onboarded: the `cms` job (the drift checks) and the `check` job (lint, the Prettier check, tests and the build). It isn't synced, so a repo already onboarded copies a changed template by hand, on its next branch.
 
 The facts in `docs/cms/` come from the Headless CMS backend (`rmarafioti/3d_wd_backend`), whose `docs/endpoints.md` is the source of truth. This repo is maintained from the backend's Claude session, and its `/doc-sync` checks `docs/cms/` against the backend's docs.
 
